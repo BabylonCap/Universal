@@ -431,20 +431,18 @@ h1:where(.wp-block-heading).has-background,h2:where(.wp-block-heading).has-backg
 <div class="wp-block-column is-layout-flow wp-block-column-is-layout-flow">
 
   <style>
-    body { margin: 0; background: transparent; }
-
-    .adiuvat-box {
+    .fb-page-square {
       max-width: 420px;
       aspect-ratio: 1 / 1;
       margin: 0 auto;
+      overflow: hidden;
       border-radius: 18px;
       background: linear-gradient(135deg, #0f172a, #020617);
-      box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
       font-family: Arial, sans-serif;
       color: #fff;
       display: flex;
       flex-direction: column;
-      overflow: hidden;
     }
 
     .header {
@@ -496,7 +494,7 @@ h1:where(.wp-block-heading).has-background,h2:where(.wp-block-heading).has-backg
     }
   </style>
 
-  <div class="adiuvat-box">
+  <div class="fb-page-square">
 
     <div class="header">ADIUVAT INDICES</div>
 
@@ -523,6 +521,51 @@ h1:where(.wp-block-heading).has-background,h2:where(.wp-block-heading).has-backg
     </div>
 
     <div class="footer">Datos en tiempo real</div>
+
+  </div>
+
+  <script>
+    async function loadData() {
+      try {
+        const res = await fetch(
+          "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,tether&vs_currencies=usd&include_24hr_change=true"
+        );
+
+        const data = await res.json();
+
+        function set(idPrice, idChange, price, change) {
+          const priceEl = document.getElementById(idPrice);
+          const changeEl = document.getElementById(idChange);
+
+          if (!price) {
+            priceEl.innerText = "—";
+            changeEl.innerText = "Sin datos";
+            return;
+          }
+
+          priceEl.innerText = "$" + price.toLocaleString();
+
+          changeEl.innerText = change.toFixed(2) + "%";
+          changeEl.className = "change " + (change >= 0 ? "positive" : "negative");
+        }
+
+        set("btc", "btcChange", data.bitcoin.usd, data.bitcoin.usd_24h_change);
+        set("eth", "ethChange", data.ethereum.usd, data.ethereum.usd_24h_change);
+        set("usdt", "usdtChange", data.tether.usd, data.tether.usd_24h_change);
+
+      } catch (e) {
+        console.error(e);
+        document.getElementById("btc").innerText = "Error";
+        document.getElementById("eth").innerText = "Error";
+        document.getElementById("usdt").innerText = "Error";
+      }
+    }
+
+    loadData();
+    setInterval(loadData, 30000);
+  </script>
+
+</div>
 
   </div>
 
