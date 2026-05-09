@@ -1,0 +1,287 @@
+<!-- Embed ADIUVAT - Red de Burbujas Interactiva -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+  .adiuvat-bubble-widget {
+    max-width: 420px;
+    aspect-ratio: 1 / 1;
+    margin: 0 auto;
+    position: relative;
+    border-radius: 18px;
+    overflow: hidden;
+    background: rgba(10, 10, 20, 0.85);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
+    backdrop-filter: blur(8px);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+  }
+
+  #adiuvat-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .adiuvat-tooltip {
+    position: absolute;
+    background: rgba(0, 20, 10, 0.95);
+    color: #c9ffb0;
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 12px;
+    pointer-events: none;
+    z-index: 20;
+    border: 1px solid #4ade80;
+    box-shadow: 0 0 24px rgba(74, 222, 128, 0.4);
+    backdrop-filter: blur(4px);
+    display: none;
+    white-space: nowrap;
+    transition: opacity 0.2s;
+  }
+
+  .adiuvat-tooltip .stars {
+    color: #facc15;
+    margin-left: 4px;
+  }
+
+  .adiuvat-legend {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.6);
+    font-size: 9px;
+    letter-spacing: 2px;
+    pointer-events: none;
+    text-transform: uppercase;
+  }
+</style>
+
+<div class="adiuvat-bubble-widget">
+  <canvas id="adiuvat-canvas"></canvas>
+  <div class="adiuvat-tooltip" id="adiuvat-tooltip"></div>
+  <div class="adiuvat-legend">✦ Adiuvat Network ✦</div>
+</div>
+
+<script>
+  (function() {
+    const canvas = document.getElementById('adiuvat-canvas');
+    const ctx = canvas.getContext('2d');
+    const tooltip = document.getElementById('adiuvat-tooltip');
+    const container = canvas.parentElement;
+
+    // Datos de nodos (establecimientos, talentos, eventos)
+    const nodes = [
+      { id: 'talent_club', label: 'Talent Club', type: 'venue', trust: 4.9, tips: 2654, color: '#4ade80', x: 0.3, y: 0.25, radius: 28 },
+      { id: 'burger_bar', label: 'Burger Bar', type: 'venue', trust: 4.7, tips: 1250, color: '#4ade80', x: 0.7, y: 0.3, radius: 26 },
+      { id: 'pizza_bingo', label: 'Pizza + Bingo', type: 'event', trust: 5.0, tips: 70, color: '#facc15', x: 0.2, y: 0.55, radius: 22 },
+      { id: 'karaoke', label: 'Karaoke + Cena', type: 'event', trust: 4.8, tips: 75, color: '#facc15', x: 0.45, y: 0.15, radius: 20 },
+      { id: 'gokart', label: 'Crazy Carting', type: 'event', trust: 4.0, tips: 30, color: '#a3e635', x: 0.8, y: 0.6, radius: 18 },
+      { id: 'yoga', label: 'Yoga con pesar', type: 'event', trust: 4.5, tips: 50, color: '#a3e635', x: 0.55, y: 0.75, radius: 19 },
+      { id: 'dj_purple', label: 'DJ PurpleWave', type: 'talent', trust: 4.9, tips: 140, color: '#facc15', x: 0.85, y: 0.2, radius: 24 },
+      { id: 'marco', label: 'Marco', type: 'talent', trust: 4.9, tips: 290, color: '#facc15', x: 0.15, y: 0.8, radius: 20 },
+      { id: 'bartender_max', label: 'Bartender Max', type: 'talent', trust: 4.8, tips: 480, color: '#4ade80', x: 0.9, y: 0.85, radius: 22 },
+      { id: 'academia_dance', label: 'Academia Dance', type: 'venue', trust: 4.6, tips: 980, color: '#4ade80', x: 0.4, y: 0.45, radius: 24 }
+    ];
+
+    // Conexiones predefinidas (líneas de colaboración)
+    const connections = [
+      ['talent_club', 'pizza_bingo'],
+      ['talent_club', 'dj_purple'],
+      ['burger_bar', 'bartender_max'],
+      ['marco', 'karaoke'],
+      ['yoga', 'academia_dance'],
+      ['gokart', 'burger_bar'],
+      ['dj_purple', 'karaoke'],
+      ['bartender_max', 'talent_club'],
+      ['academia_dance', 'yoga']
+    ];
+
+    // Mapa de nodos por id
+    const nodeMap = {};
+    nodes.forEach(n => nodeMap[n.id] = n);
+
+    // Variables de animación
+    let time = 0;
+    let hoveredNode = null;
+    let selectedNode = null;
+
+    // Ajustar tamaño del canvas
+    function resize() {
+      const rect = container.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Conversión de coordenadas relativas a píxeles
+    function getPos(node) {
+      return {
+        x: node.x * canvas.width,
+        y: node.y * canvas.height
+      };
+    }
+
+    // Dibujar estrellas (caracteres ⭐) alrededor de un nodo
+    function drawStars(pos, trust, radius) {
+      ctx.save();
+      ctx.font = `${Math.max(10, radius * 0.4)}px sans-serif`;
+      ctx.fillStyle = '#facc15';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const starCount = Math.round(trust);
+      const angleStep = (Math.PI * 2) / starCount;
+      for (let i = 0; i < starCount; i++) {
+        const angle = i * angleStep - Math.PI/2;
+        const sx = pos.x + Math.cos(angle) * (radius + 6 + Math.sin(time * 0.05 + i) * 2);
+        const sy = pos.y + Math.sin(angle) * (radius + 6 + Math.cos(time * 0.05 + i) * 2);
+        ctx.fillText('⭐', sx, sy);
+      }
+      ctx.restore();
+    }
+
+    // Dibujar conexiones entre nodos
+    function drawConnections() {
+      connections.forEach(([idA, idB]) => {
+        const a = nodeMap[idA];
+        const b = nodeMap[idB];
+        if (!a || !b) return;
+        const posA = getPos(a);
+        const posB = getPos(b);
+
+        // Línea punteada animada
+        ctx.save();
+        ctx.strokeStyle = '#4ade80';
+        ctx.lineWidth = 1.2;
+        ctx.globalAlpha = 0.4 + Math.sin(time * 0.08 + posA.x) * 0.1;
+        ctx.setLineDash([5, 8]);
+        ctx.lineDashOffset = time * 0.3;
+        ctx.beginPath();
+        ctx.moveTo(posA.x, posA.y);
+        ctx.lineTo(posB.x, posB.y);
+        ctx.stroke();
+        ctx.restore();
+      });
+    }
+
+    // Dibujar nodo individual
+    function drawNode(node) {
+      const pos = getPos(node);
+      const isHovered = hoveredNode === node;
+      const isSelected = selectedNode === node;
+      const radius = node.radius + (isHovered ? 4 : 0) + (isSelected ? 6 : 0) + Math.sin(time * 0.1 + pos.x) * 1.5;
+
+      // Sombra exterior
+      ctx.save();
+      ctx.shadowColor = node.color;
+      ctx.shadowBlur = isHovered ? 24 : 14;
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = node.color;
+      ctx.globalAlpha = 0.7;
+      ctx.fill();
+      ctx.restore();
+
+      // Círculo central más opaco
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, radius * 0.75, 0, Math.PI * 2);
+      ctx.fillStyle = '#0f172a';
+      ctx.fill();
+      ctx.strokeStyle = node.color;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Texto del nombre dentro del círculo
+      ctx.save();
+      ctx.font = `bold ${Math.max(9, radius * 0.35)}px "Segoe UI"`;
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const words = node.label.split(' ');
+      if (words.length > 1) {
+        ctx.fillText(words[0], pos.x, pos.y - radius * 0.2);
+        ctx.fillText(words.slice(1).join(' '), pos.x, pos.y + radius * 0.25);
+      } else {
+        ctx.fillText(node.label, pos.x, pos.y);
+      }
+      ctx.restore();
+
+      // Estrellas alrededor
+      drawStars(pos, node.trust, radius);
+    }
+
+    // Loop de animación
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      time++;
+
+      // Dibujar fondo con partículas (polvo estelar)
+      for (let i = 0; i < 50; i++) {
+        const px = (Math.sin(i * 73.37 + time * 0.02) * 0.5 + 0.5) * canvas.width;
+        const py = (Math.cos(i * 43.13 + time * 0.015) * 0.5 + 0.5) * canvas.height;
+        ctx.fillStyle = `rgba(255,255,255,${0.15 + Math.sin(time*0.05 + i)*0.05})`;
+        ctx.beginPath();
+        ctx.arc(px, py, 1.2, 0, Math.PI*2);
+        ctx.fill();
+      }
+
+      drawConnections();
+      nodes.forEach(drawNode);
+
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+
+    // Manejo de mouse
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+
+      // Detectar nodo bajo el cursor
+      hoveredNode = null;
+      for (const node of nodes) {
+        const pos = getPos(node);
+        const dist = Math.hypot(mx - pos.x, my - pos.y);
+        if (dist < node.radius + 8) {
+          hoveredNode = node;
+          break;
+        }
+      }
+
+      // Actualizar tooltip
+      if (hoveredNode) {
+        tooltip.style.display = 'block';
+        tooltip.style.left = (mx + 15) + 'px';
+        tooltip.style.top = (my - 10) + 'px';
+        const trustStars = '⭐'.repeat(Math.round(hoveredNode.trust));
+        tooltip.innerHTML = `
+          <strong>${hoveredNode.label}</strong> ${trustStars}
+          <br><span style="color:#facc15">${hoveredNode.tips} TIP$</span>
+          <br><span style="font-size:10px;color:#a3e635">${hoveredNode.type === 'venue' ? 'Establecimiento' : hoveredNode.type === 'event' ? 'Evento' : 'Talento'}</span>
+        `;
+      } else {
+        tooltip.style.display = 'none';
+      }
+    });
+
+    canvas.addEventListener('click', (e) => {
+      if (hoveredNode) {
+        selectedNode = (selectedNode === hoveredNode) ? null : hoveredNode;
+        // Efecto de selección: pequeño pulso visual en el tooltip
+        if (selectedNode) {
+          tooltip.innerHTML += '<br><span style="color:#4ade80;font-weight:bold;">✅ Seleccionado</span>';
+        }
+      }
+    });
+
+    // Limpiar selección al salir del canvas
+    canvas.addEventListener('mouseleave', () => {
+      hoveredNode = null;
+      tooltip.style.display = 'none';
+    });
+
+  })();
+</script>
