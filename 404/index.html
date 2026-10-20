@@ -483,7 +483,7 @@ h1:where(.wp-block-heading).has-background,h2:where(.wp-block-heading).has-backg
         body: JSON.stringify(payload)
       });
       const json = await r.json();
-      const reply = json.choices?.[0]?.message?.content || 'Hola, nuestro staff siempre está activo, pero este medio tiene las solicitudes permitidas en uso. Atendemos rápidamente a través de <a href="mailto:soporteadiuvat@gmail.com?subject=Soporte%20ADIUVAT&body=Hola,%20necesito%20ayuda%20con%20ADIUVAT." target="_blank" style="color:#4fc3f7; font-weight:600; text-decoration:underline;">aquí</a> y allí: soporteadiuvat@gmail.com';
+      const reply = json.choices?.[0]?.message?.content || 'Hola, nuestro staff siempre está activo, pero este medio tiene las solicitudes permitidas en uso. Atendemos rápidamente a través de <a href="mailto:babylon.capital@europe.com?subject=Soporte%20ADIUVAT&body=Hola,%20necesito%20ayuda%20con%20ADIUVAT." target="_blank" style="color:#4fc3f7; font-weight:600; text-decoration:underline;">aquí</a> y allí: babylon.capital@europe.com';
       body.lastElementChild.remove();
       append('bot', reply);
       session.history.pop();
