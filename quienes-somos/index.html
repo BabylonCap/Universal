@@ -891,21 +891,31 @@ ul.wp-block-rss.alignleft{margin-right:2em}ul.wp-block-rss.alignright{margin-lef
 
 <!-- Script -->
 <script>
-document.getElementById('accept-cookies').addEventListener('click', function() {
-  localStorage.setItem('cookiesAccepted', 'true');
+(function() {
   const bar = document.getElementById('cookie-bar');
   const btn = document.getElementById('accept-cookies');
-  btn.classList.add('accepted');
-  setTimeout(() => {
-    bar.style.display = 'none';
-  }, 500);
-});
+  if(!bar || !btn) return;
 
-window.addEventListener('load', function() {
-  if(localStorage.getItem('cookiesAccepted') === 'true') {
-    document.getElementById('cookie-bar').style.display = 'none';
+  const hideBar = () => { bar.style.display = 'none'; };
+  try {
+    if(localStorage.getItem('cookiesAccepted') === 'true') {
+      hideBar();
+      return;
+    }
+  } catch(error) {
+    console.warn('No se pudo leer la preferencia de cookies del navegador.', error);
   }
-});
+
+  btn.addEventListener('click', function() {
+    try {
+      localStorage.setItem('cookiesAccepted', 'true');
+    } catch(error) {
+      console.warn('No se pudo guardar la preferencia de cookies en el navegador.', error);
+    }
+    btn.classList.add('accepted');
+    setTimeout(hideBar, 500);
+  }, { once: true });
+})();
 </script><script type="module" src="https://adiuvat.com.co/wp-includes/js/dist/script-modules/block-library/navigation/view.min.js?ver=b0f909c3ec791c383210" id="@wordpress/block-library/navigation/view-js-module" fetchpriority="low" data-wp-router-options="{&quot;loadOnClientNavigation&quot;:true}"></script>
 <script id="wp-block-template-skip-link-js-after">
 	( function() {
