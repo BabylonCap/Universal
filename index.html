@@ -1225,6 +1225,8 @@ window.addEventListener("message", function(e){
   Tu función es acompañar y orientar a los visitantes dentro del ecosistema ADIUVAT:
   Usuarios, Burbujas y Talentos. Responde con tono profesional, amable y claro.`;
 
+  const saludo = '👋 Hola, soy el Asistente de DappAdiuvat. ¿Eres Usuario, Proveedor, Burbuja o Talento?';
+  const saludoAnterior = '👋 Hola, soy el Asistente de DappAdiuvat.<br>¿Eres <b>Usuario</b>, <b>Proveedor</b>, <b>Burbuja</b> o <b>Talento</b>?';
   let session = { role:null, history:[] };
 
   const savedHistory = sessionStorage.getItem('adiChatHistory');
@@ -1232,7 +1234,6 @@ window.addEventListener("message", function(e){
     session.history = JSON.parse(savedHistory);
     session.history.forEach(m => append(m.role, m.text));
   } else {
-    const saludo = '👋 Hola, soy el Asistente de DappAdiuvat.<br>¿Eres <b>Usuario</b>, <b>Proveedor</b>, <b>Burbuja</b> o <b>Talento</b>?';
     append('bot', saludo);
     session.history.push({role:'bot', text:saludo});
     sessionStorage.setItem('adiChatHistory', JSON.stringify(session.history));
@@ -1241,7 +1242,22 @@ window.addEventListener("message", function(e){
   function append(role, text){
     const el = document.createElement('div');
     el.className = 'adi-msg ' + (role==='user'?'user':'bot');
-    el.innerHTML = text;
+    if(role === 'bot' && (text === saludo || text === saludoAnterior)){
+      el.append(document.createTextNode('👋 Hola, soy el Asistente de DappAdiuvat.'));
+      el.append(document.createElement('br'));
+      el.append(document.createTextNode('¿Eres '));
+      ['Usuario', 'Proveedor', 'Burbuja', 'Talento'].forEach((label, index, labels) => {
+        const strong = document.createElement('b');
+        strong.textContent = label;
+        el.append(strong);
+        if(index < labels.length - 1){
+          el.append(document.createTextNode(index === labels.length - 2 ? ' o ' : ', '));
+        }
+      });
+      el.append(document.createTextNode('?'));
+    } else {
+      el.textContent = text;
+    }
     body.appendChild(el);
     body.scrollTop = body.scrollHeight;
   }
@@ -1282,7 +1298,7 @@ window.addEventListener("message", function(e){
         body: JSON.stringify(payload)
       });
       const json = await r.json();
-      const reply = json.choices?.[0]?.message?.content || 'Hola, nuestro staff siempre está activo, pero este medio tiene las solicitudes permitidas en uso. Atendemos rápidamente a través de <a href="mailto:babylon.capital@europe.com?subject=Soporte%20ADIUVAT&body=Hola,%20necesito%20ayuda%20con%20ADIUVAT." target="_blank" style="color:#4fc3f7; font-weight:600; text-decoration:underline;">aquí</a> y allí: babylon.capital@europe.com';
+      const reply = json.choices?.[0]?.message?.content || 'Hola, nuestro staff siempre está activo, pero este medio tiene las solicitudes permitidas en uso. Atendemos rápidamente en babylon.capital@europe.com.';
       body.lastElementChild.remove();
       append('bot', reply);
       session.history.pop();
