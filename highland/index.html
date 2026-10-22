@@ -1259,11 +1259,10 @@ setInterval(() => {
       model:"gpt-4o-mini",
       messages:[
         { role:'system', content: SYSTEM_PROMPT },
-        ...session.history.filter(m => m.role && m.text).map(m => ({
+        ...session.history.filter(m => m.role && m.text && !(m.role === 'bot' && m.text === '...')).map(m => ({
           role: m.role === 'user' ? 'user' : 'assistant',
           content: m.text
-        })),
-        { role:'user', content:text }
+        }))
       ],
       max_tokens:700,
       temperature:0.7
@@ -1394,14 +1393,30 @@ setInterval(() => {
   const btn = document.getElementById('accept-cookies');
   if(!bar || !btn) return;
 
+  const consentCookie = 'adiuvat_cookie_consent';
+  const hasCookieConsent = () => document.cookie.split(';').some(cookie => cookie.trim() === `${consentCookie}=accepted`);
+  const saveCookieConsent = () => {
+    const secure = location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie = `${consentCookie}=accepted; Max-Age=31536000; Path=/; SameSite=Lax${secure}`;
+    if(!hasCookieConsent()) throw new Error('El navegador no guardó la cookie de consentimiento.');
+  };
   const hideBar = () => { bar.style.display = 'none'; };
+  let hasConsent = hasCookieConsent();
   try {
-    if(localStorage.getItem('cookiesAccepted') === 'true') {
-      hideBar();
-      return;
-    }
+    hasConsent = hasConsent || localStorage.getItem('cookiesAccepted') === 'true';
   } catch(error) {
     console.warn('No se pudo leer la preferencia de cookies del navegador.', error);
+  }
+  if(hasConsent) {
+    hideBar();
+    if(!hasCookieConsent()) {
+      try {
+        saveCookieConsent();
+      } catch(error) {
+        console.warn('No se pudo guardar la cookie de consentimiento en el navegador.', error);
+      }
+    }
+    return;
   }
 
   btn.addEventListener('click', function() {
@@ -1409,6 +1424,11 @@ setInterval(() => {
       localStorage.setItem('cookiesAccepted', 'true');
     } catch(error) {
       console.warn('No se pudo guardar la preferencia de cookies en el navegador.', error);
+    }
+    try {
+      saveCookieConsent();
+    } catch(error) {
+      console.warn('No se pudo guardar la cookie de consentimiento en el navegador.', error);
     }
     btn.classList.add('accepted');
     setTimeout(hideBar, 500);

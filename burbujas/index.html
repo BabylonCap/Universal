@@ -945,6 +945,8 @@ tamano.appendChild(opt);
   Tu función es acompañar y orientar a los visitantes dentro del ecosistema ADIUVAT:
   Usuarios, Burbujas y Talentos. Responde con tono profesional, amable y claro.`;
 
+  const saludo = '👋 Hola, soy el Asistente de DappAdiuvat. ¿Eres Usuario, Proveedor, Burbuja o Talento?';
+  const saludoAnterior = '👋 Hola, soy el Asistente de DappAdiuvat.<br>¿Eres <b>Usuario</b>, <b>Proveedor</b>, <b>Burbuja</b> o <b>Talento</b>?';
   let session = { role:null, history:[] };
 
   const savedHistory = sessionStorage.getItem('adiChatHistory');
@@ -952,7 +954,6 @@ tamano.appendChild(opt);
     session.history = JSON.parse(savedHistory);
     session.history.forEach(m => append(m.role, m.text));
   } else {
-    const saludo = '👋 Hola, soy el Asistente de DappAdiuvat.<br>¿Eres <b>Usuario</b>, <b>Proveedor</b>, <b>Burbuja</b> o <b>Talento</b>?';
     append('bot', saludo);
     session.history.push({role:'bot', text:saludo});
     sessionStorage.setItem('adiChatHistory', JSON.stringify(session.history));
@@ -961,7 +962,22 @@ tamano.appendChild(opt);
   function append(role, text){
     const el = document.createElement('div');
     el.className = 'adi-msg ' + (role==='user'?'user':'bot');
-    el.innerHTML = text;
+    if(role === 'bot' && (text === saludo || text === saludoAnterior)){
+      el.append(document.createTextNode('👋 Hola, soy el Asistente de DappAdiuvat.'));
+      el.append(document.createElement('br'));
+      el.append(document.createTextNode('¿Eres '));
+      ['Usuario', 'Proveedor', 'Burbuja', 'Talento'].forEach((label, index, labels) => {
+        const strong = document.createElement('b');
+        strong.textContent = label;
+        el.append(strong);
+        if(index < labels.length - 1){
+          el.append(document.createTextNode(index === labels.length - 2 ? ' o ' : ', '));
+        }
+      });
+      el.append(document.createTextNode('?'));
+    } else {
+      el.textContent = text;
+    }
     body.appendChild(el);
     body.scrollTop = body.scrollHeight;
   }
@@ -985,11 +1001,10 @@ tamano.appendChild(opt);
       model:"gpt-4o-mini",
       messages:[
         { role:'system', content: SYSTEM_PROMPT },
-        ...session.history.filter(m => m.role && m.text).map(m => ({
+        ...session.history.filter(m => m.role && m.text && !(m.role === 'bot' && m.text === '...')).map(m => ({
           role: m.role === 'user' ? 'user' : 'assistant',
           content: m.text
-        })),
-        { role:'user', content:text }
+        }))
       ],
       max_tokens:700,
       temperature:0.7
@@ -1002,7 +1017,7 @@ tamano.appendChild(opt);
         body: JSON.stringify(payload)
       });
       const json = await r.json();
-      const reply = json.choices?.[0]?.message?.content || 'Hola, nuestro staff siempre está activo, pero este medio tiene las solicitudes permitidas en uso. Atendemos rápidamente a través de <a href="mailto:babylon.capital@europe.com?subject=Soporte%20ADIUVAT&body=Hola,%20necesito%20ayuda%20con%20ADIUVAT." target="_blank" style="color:#4fc3f7; font-weight:600; text-decoration:underline;">aquí</a> y allí: babylon.capital@europe.com';
+      const reply = json.choices?.[0]?.message?.content || 'Hola, nuestro staff siempre está activo, pero este medio tiene las solicitudes permitidas en uso. Atendemos rápidamente en babylon.capital@europe.com.';
       body.lastElementChild.remove();
       append('bot', reply);
       session.history.pop();
@@ -1120,14 +1135,30 @@ tamano.appendChild(opt);
   const btn = document.getElementById('accept-cookies');
   if(!bar || !btn) return;
 
+  const consentCookie = 'adiuvat_cookie_consent';
+  const hasCookieConsent = () => document.cookie.split(';').some(cookie => cookie.trim() === `${consentCookie}=accepted`);
+  const saveCookieConsent = () => {
+    const secure = location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie = `${consentCookie}=accepted; Max-Age=31536000; Path=/; SameSite=Lax${secure}`;
+    if(!hasCookieConsent()) throw new Error('El navegador no guardó la cookie de consentimiento.');
+  };
   const hideBar = () => { bar.style.display = 'none'; };
+  let hasConsent = hasCookieConsent();
   try {
-    if(localStorage.getItem('cookiesAccepted') === 'true') {
-      hideBar();
-      return;
-    }
+    hasConsent = hasConsent || localStorage.getItem('cookiesAccepted') === 'true';
   } catch(error) {
     console.warn('No se pudo leer la preferencia de cookies del navegador.', error);
+  }
+  if(hasConsent) {
+    hideBar();
+    if(!hasCookieConsent()) {
+      try {
+        saveCookieConsent();
+      } catch(error) {
+        console.warn('No se pudo guardar la cookie de consentimiento en el navegador.', error);
+      }
+    }
+    return;
   }
 
   btn.addEventListener('click', function() {
@@ -1135,6 +1166,11 @@ tamano.appendChild(opt);
       localStorage.setItem('cookiesAccepted', 'true');
     } catch(error) {
       console.warn('No se pudo guardar la preferencia de cookies en el navegador.', error);
+    }
+    try {
+      saveCookieConsent();
+    } catch(error) {
+      console.warn('No se pudo guardar la cookie de consentimiento en el navegador.', error);
     }
     btn.classList.add('accepted');
     setTimeout(hideBar, 500);
